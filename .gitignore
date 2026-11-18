@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+bin/
+obj/
+.vs/
+*.user
+
+.env
+.env.*
+*.pfx
+*.pem
+*.key
+appsettings.*.json
