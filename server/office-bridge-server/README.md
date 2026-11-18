@@ -22,7 +22,7 @@ To test this MCP server from source code (locally), you can configure your IDE t
 ```json
 {
   "servers": {
-    "office-brdge-server": {
+    "office-bridge-server": {
       "type": "http",
       "url": "http://localhost:6143"
     }
@@ -37,7 +37,7 @@ Refer to the VS Code or Visual Studio documentation for more information on conf
 
 ## Testing the MCP Server
 
-Once configured, you can ask Copilot Chat for a random number, for example, `Give me 3 random numbers`. It should prompt you to use the `get_random_number` tool on the `office-brdge-server` MCP server and show you the results.
+Once configured, you can ask Copilot Chat for a random number, for example, `Give me 3 random numbers`. It should prompt you to use the `get_random_number` tool on the `office-bridge-server` MCP server and show you the results.
 
 ## Known issues
 

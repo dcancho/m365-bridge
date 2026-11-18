@@ -5,7 +5,7 @@ A relay that lets an AI agent read and write a live Excel workbook. An Office ad
 ## Layout
 
 - `add-in/`: Excel task pane add-in (TypeScript, Office.js)
-- `server/office-brdge-server/`: relay and MCP server (ASP.NET Core)
+- `server/office-bridge-server/`: relay and MCP server (ASP.NET Core)
 
 ## Running locally
 
@@ -22,5 +22,5 @@ npm start
 Server, MCP endpoint on `http://localhost:6143`:
 
 ```bash
-dotnet run --project server/office-brdge-server
+dotnet run --project server/office-bridge-server
 ```
