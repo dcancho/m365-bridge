@@ -11,7 +11,7 @@ public class CellAddress
 		Column = column;
 	}
 
-	public CellAddress? Set(int row, string column)
+	public static CellAddress? Create(int row, string column)
 	{
 		if (row <= 0 || row > 1_048_576 || GetColumnInt(column) == null )
 		{
