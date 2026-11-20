@@ -1,1 +1,1 @@
-import "./commands.excel";
+Office.onReady(() => {});

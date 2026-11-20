@@ -1,11 +1,19 @@
 /* eslint-disable no-undef */
 
+const webpack = require("webpack");
 const devCerts = require("office-addin-dev-certs");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 const urlDev = "https://localhost:3100/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://localhost:5299/";
+const relayUrlDev = "https://localhost:5299/relay";
+const relayUrlProd = "/relay";
+
+const idDev = "c1a5f652-13e9-48c2-bd53-f963b4f0523e";
+const idProd = "648f305c-2a95-4ef1-8f4d-32759078d39c";
+const nameDev = "M365 Bridge Dev";
+const nameProd = "M365 Bridge";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -51,6 +59,9 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new webpack.DefinePlugin({
+        RELAY_URL: JSON.stringify(dev ? relayUrlDev : relayUrlProd),
+      }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",
@@ -69,7 +80,11 @@ module.exports = async (env, options) => {
               if (dev) {
                 return content;
               } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
+                return content
+                  .toString()
+                  .replaceAll(urlDev, urlProd)
+                  .replace(idDev, idProd)
+                  .replace(`"${nameDev}"`, `"${nameProd}"`);
               }
             },
           },
