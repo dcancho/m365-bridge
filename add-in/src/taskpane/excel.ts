@@ -53,7 +53,8 @@ export async function readRange(
 	ctx: Excel.RequestContext,
 	{ range, sheet, includeFormulas = false }: ReadRangeArgs
 ): Promise<{
-	values: any[][]
+	values: any[][];
+	formulas?: any[][];
 }> {
 	const ws = sheet ? ctx.workbook.worksheets.getItem(sheet) : ctx.workbook.worksheets.getActiveWorksheet();
 
@@ -64,7 +65,9 @@ export async function readRange(
 
 	await ctx.sync();
 
-	return { values: rangeObject.values }
+	return includeFormulas
+		? { values: rangeObject.values, formulas: rangeObject.formulas }
+		: { values: rangeObject.values };
 }
 
 export async function getWorksheets(
