@@ -20,7 +20,7 @@
       "office-runtime"
     ],
     "lib": [
-      "es2015",
+      "es2022",
       "dom"
     ]
   },

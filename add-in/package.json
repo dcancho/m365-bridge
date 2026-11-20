@@ -27,6 +27,7 @@
     "watch": "webpack --mode development --watch"
   },
   "dependencies": {
+    "@microsoft/signalr": "^11.0.0",
     "core-js": "^3.36.0",
     "regenerator-runtime": "^0.14.1"
   },
