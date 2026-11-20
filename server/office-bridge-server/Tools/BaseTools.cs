@@ -1,60 +1,64 @@
 using System.ComponentModel;
+using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
-internal class BaseTools
+internal class BaseTools(SessionRegistry registry, IHubContext<Relay> hub)
 {
-	[McpServerTool]
-	[Description("Reads a value from a cell.")]
-	public CellResult? ReadCell(CellAddress address)
+	private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
+	[McpServerTool(Name = "list_documents", ReadOnly = true)]
+	[Description("Lists the Office documents that currently have the bridge add-in open. Call this first to get a document_id.")]
+	public object ListDocuments()
 	{
-		return new CellResult
+		return registry.GetSessions().Select(s => new
 		{
-			Address = address,
-			Value = "Sample Value",
-			Formula = "=A1+B1",
-			Error = null,
-			MergedRange = null
-		};
+			document_id = s.SessionId,
+			host = s.Host,
+			name = s.DocumentName,
+			url = s.Url,
+			opened_at = s.CreatedAt
+		});
 	}
 
-	[McpServerTool]
-	[Description("Reads a range of cells.")]
-	public MatrixResult ReadRange(CellAddress startAddress, CellAddress endAddress)
+	[McpServerTool(Name = "read_range", ReadOnly = true)]
+	[Description("Reads the values of a range in an Excel workbook. Returns a 2D array of values, one inner array per row.")]
+	public Task<JsonElement?> ReadRange(
+		[Description("Document id from list_documents.")] string document_id,
+		[Description("Range address in A1 notation, such as \"A1\" or \"A1:C10\".")] string range,
+		[Description("Worksheet name. Uses the active sheet when omitted.")] string? sheet = null,
+		CancellationToken cancellationToken = default)
 	{
-		var result = new MatrixResult
-		{
-			StartAddress = startAddress,
-			EndAddress = endAddress
-		};
+		return Execute(document_id, "read_range", new { range, sheet }, cancellationToken);
+	}
 
-		int rowCount = endAddress.Row - startAddress.Row + 1;
-		int columnCount = CellAddress.GetColumnInt(endAddress.Column).Value - CellAddress.GetColumnInt(startAddress.Column).Value + 1;
+	private async Task<JsonElement?> Execute(string documentId, string command, object args, CancellationToken cancellationToken)
+	{
+		var session = registry.GetSession(documentId)
+			?? throw new McpException($"Document '{documentId}' is not open. Call list_documents to see the open documents.");
 
-		for (int i = 0; i < rowCount; i++)
+		using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		timeout.CancelAfter(CommandTimeout);
+
+		ExcelResponse response;
+		try
 		{
-			var rowValues = new List<CellResult>();
-			for (int j = 0; j < columnCount; j++)
-			{
-				var cellAddress = CellAddress.Create(startAddress.Row + i, CellAddress.GetColumnString(CellAddress.GetColumnInt(startAddress.Column).Value + j));
-				rowValues.Add(new CellResult
-				{
-					Address = cellAddress,
-					Value = $"Value {cellAddress.Column}{cellAddress.Row}",
-					Formula = null,
-					Error = null,
-					MergedRange = null
-				});
-			}
-			result.Values.Add(rowValues);
+			response = await hub.Clients.Client(session.ConnectionId)
+				.InvokeAsync<ExcelResponse>("execute", command, args, timeout.Token);
+		}
+		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+		{
+			throw new McpException($"The add-in in '{session.DocumentName}' did not respond within {CommandTimeout.TotalSeconds} seconds.");
 		}
 
-		return result;
-	}
+		if (!response.Ok)
+		{
+			throw new McpException($"{response.Code}: {response.Message}");
+		}
 
-	[McpServerTool]
-	[Description("Writes a value to a cell.")]
-	public void WriteCell(CellAddress address, string value, bool isFormula = false)
-	{
-		// Implementation to write the value to the specified cell address
+		return response.Data;
 	}
 }
+
+public record ExcelResponse(bool Ok, JsonElement? Data, string? Code, string? Message);
