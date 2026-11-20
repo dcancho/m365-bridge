@@ -2,11 +2,6 @@ using Microsoft.AspNetCore.SignalR;
 
 public class Relay(SessionRegistry registry) : Hub
 {
-	public async Task SendMessage(string method, object message)
-	{
-		await Clients.All.SendAsync(method, message);
-	}
-
 	public void Register(RegisterRequest request)
 	{
 		registry.AddSession(request, Context.ConnectionId);

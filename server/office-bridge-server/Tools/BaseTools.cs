@@ -31,8 +31,17 @@ internal class BaseTools(SessionRegistry registry, IHubContext<Relay> hub)
 		return Execute(document_id, "get_worksheets", new { }, cancellationToken);
 	}
 
+	[McpServerTool(Name = "get_selection", ReadOnly = true)]
+	[Description("Returns the sheet and address of the cells the user has selected in Excel. Use it when the user refers to \"this\", \"here\" or \"the selection\".")]
+	public Task<JsonElement?> GetSelection(
+		[Description("Document id from list_documents.")] string document_id,
+		CancellationToken cancellationToken = default)
+	{
+		return Execute(document_id, "get_selection", new { }, cancellationToken);
+	}
+
 	[McpServerTool(Name = "read_range", ReadOnly = true)]
-	[Description("Reads the values of a range in an Excel workbook. Returns a 2D array of values, one inner array per row, and the formulas in the same shape when requested.")]
+	[Description("Reads the values of a range in an Excel workbook. Returns a 2D array of values, one inner array per row, the formulas in the same shape when requested, and a read_token. write_range needs that token to change any cell inside this range.")]
 	public Task<JsonElement?> ReadRange(
 		[Description("Document id from list_documents.")] string document_id,
 		[Description("Range address in A1 notation, such as \"A1\" or \"A1:C10\".")] string range,
@@ -44,16 +53,16 @@ internal class BaseTools(SessionRegistry registry, IHubContext<Relay> hub)
 	}
 
 	[McpServerTool(Name = "write_range", Destructive = true, Idempotent = true)]
-	[Description("Writes values to a range in an Excel workbook, overwriting what is there. The values array must have exactly the rows and columns of the range. Strings that start with \"=\" are written as formulas.")]
-	public async Task<string> WriteRange(
+	[Description("Writes values to a range in an Excel workbook, overwriting what is there. Requires the read_token from a read_range call whose range contains this one; it fails if those cells changed since the read, so read again and reconsider. The token stays valid after your own writes. The values array must have exactly the rows and columns of the range. Strings that start with \"=\" are written as formulas.")]
+	public Task<JsonElement?> WriteRange(
 		[Description("Document id from list_documents.")] string document_id,
 		[Description("Range address in A1 notation, such as \"A1\" or \"A1:C10\".")] string range,
 		[Description("Values to write, one inner array per row.")] JsonElement[][] values,
+		[Description("read_token returned by read_range for a range that contains this one.")] string read_token,
 		[Description("Worksheet name. Uses the active sheet when omitted.")] string? sheet = null,
 		CancellationToken cancellationToken = default)
 	{
-		await Execute(document_id, "write_range", new { range, sheet, values }, cancellationToken);
-		return $"Wrote {values.Length} row(s) to {range}.";
+		return Execute(document_id, "write_range", new { range, sheet, values, readToken = read_token }, cancellationToken);
 	}
 
 	private async Task<JsonElement?> Execute(string documentId, string command, object args, CancellationToken cancellationToken)
@@ -72,7 +81,7 @@ internal class BaseTools(SessionRegistry registry, IHubContext<Relay> hub)
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			throw new McpException($"The add-in in '{session.DocumentName}' did not respond within {CommandTimeout.TotalSeconds} seconds.");
+			throw new McpException($"The add-in in '{session.DocumentName}' did not respond within {CommandTimeout.TotalSeconds} seconds. The command may still complete in Excel; read the range again before retrying a write.");
 		}
 
 		if (!response.Ok)
